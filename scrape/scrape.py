@@ -6,7 +6,8 @@ database. See http://www.vancouversun.com/parking/basic-search.html
 
 from bs4 import BeautifulSoup
 import requests
-import sqlite3
+import logging
+# import sqlite3
 
 # Some
 
@@ -14,7 +15,6 @@ class TicketScraper:
     '''
     Extract parking tickets data from the Vancouver Sun
     '''
-    # Some constants
     # The total number of pages in the db
     MAX_PAGE = 54380
     # The total number of attempts to load a page
@@ -33,6 +33,7 @@ class TicketScraper:
         )
 
     def __init__(self):
+        # Save log to a file
         self.AppKey = self.getAppKey()
 
     def getAppKey(self):
@@ -47,26 +48,26 @@ class TicketScraper:
         # Initialize appKey
         appKey = None        
         
-        for attempt in range(self.MAX_TRIES):
-            # Try to get the page
-            print("Attempting to grab app key ... ", end="", flush=True)
-            startPage = requests.get(START_URL)
-            
-            # Parse the page if it loaded OK
-            if startPage.ok:
-                # Parse the page using Beautiful Soup to find the app key
-                soup = BeautifulSoup(startPage.content)
-        
-                # Get the app key. It should be contained in the div layer with
-                # id="cxkg", which holds a link with
-                # href="http://b2.caspio.com/dp.asp?AppKey=[APPKEY]"
-                # Grab the link to the db page and extract the App Key
-                appKey = soup.find("div", id="cxkg").find("a")["href"]
-                appKey = appKey.split("AppKey=")[1]
-                print("Done!", flush=True)
-                return appKey
-            # Page didn't load!
-            print("Failed to get app key!", flush=True)
+        # Try to get the page
+        logging.debug("Attempting to grab app key")
+        startPage = self.getPage(START_URL)
+
+        # Parse the page if it loaded OK
+        if startPage.ok:
+            # Parse the page using Beautiful Soup to find the app key
+            soup = BeautifulSoup(startPage.content)
+    
+            # Get the app key. It should be contained in the div layer with
+            # id="cxkg", which holds a link with
+            # href="http://b2.caspio.com/dp.asp?AppKey=[APPKEY]"
+            # Grab the link to the db page and extract the App Key
+            appKey = soup.find("div", id="cxkg").find("a")["href"]
+            appKey = appKey.split("AppKey=")[1]
+            logging.debug("App key retrieved")
+            return appKey
+        # Page didn't load!
+        logging.error("Failed to get app key!" + 
+                      "Page status: {}".format(startPage.status_code))
         # Raise an exception if the page did not load in MAX_TRIES attempts!
         startPage.raise_for_status()
     
@@ -96,12 +97,11 @@ class TicketScraper:
         url = self.URL_TEMPLATE.format(self.AppKey, pageNum)
 
         # Try to get the page
-        print("Loading page {:.0f}".format(pageNum), end=" ... ", flush=True)
+        logging.debug("Loading page {:.0f}".format(pageNum))
         dbPage = self.getPage(url)
         
         # If the page loaded, continue
         if dbPage.ok:
-            print("Done!", flush=True)
             # Soupify
             soup = BeautifulSoup(dbPage.content)
     
@@ -114,11 +114,14 @@ class TicketScraper:
             # Now get all the info for the tickets on this page
             tickets = []
             for linkNum, link in enumerate(ticketLinks) :
-                print("\tParsing link {:0>2d} of page {}".format(linkNum + 1,
-                                                                   pageNum), 
-                      end=" ... ", flush=True)
-                tickets.append(self.getTicketDetails(link))
-                print("Done!", flush=True)
+                logging.debug("Parsing link {:0>2d} ".format(linkNum + 1) + 
+                              "of page {}".format(pageNum))
+                ticketDetails = self.getTicketDetails(link)
+                if ticketDetails is not None:
+                    tickets.append(ticketDetails)
+                else:
+                    logging.warning("Failed to load link {:0>2d} ".format(linkNum + 1),
+                                    "on page {}".format(pageNum))
             # Done!
             return tickets
     
@@ -138,10 +141,3 @@ class TicketScraper:
             # Append our results list
             return [ span.getText() for span in ticketDetails ]
         return None
-
-# Quick test: run the ticket scraper
-if __name__ == "__main__":
-    scraper = TicketScraper()
-    # tickets1 = scraper.getTicketsOnPage(1)
-    # tickets2 = scraper.getTicketsOnPage(2)
-    tickets3 = scraper.getTicketsOnPage(scraper.MAX_PAGE)
