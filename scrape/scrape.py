@@ -6,6 +6,7 @@ database. See http://www.vancouversun.com/parking/basic-search.html
 
 from bs4 import BeautifulSoup
 import requests
+from datetime import datetime as d
 import logging
 # import sqlite3
 
@@ -66,8 +67,9 @@ class TicketScraper:
             logging.debug("App key retrieved")
             return appKey
         # Page didn't load!
-        logging.error("Failed to get app key!" + 
-                      "Page status: {}".format(startPage.status_code))
+        logging.error(
+        "Failed to get app key! Page status: {}".format(startPage.status_code)
+        )
         # Raise an exception if the page did not load in MAX_TRIES attempts!
         startPage.raise_for_status()
     
@@ -114,14 +116,16 @@ class TicketScraper:
             # Now get all the info for the tickets on this page
             tickets = []
             for linkNum, link in enumerate(ticketLinks) :
-                logging.debug("Parsing link {:0>2d} ".format(linkNum + 1) + 
-                              "of page {}".format(pageNum))
+                logging.debug(
+                "Parsing link {:0>2d} of page {}".format(linkNum + 1, pageNum)
+                )
                 ticketDetails = self.getTicketDetails(link)
                 if ticketDetails is not None:
                     tickets.append(ticketDetails)
                 else:
-                    logging.warning("Failed to load link {:0>2d} ".format(linkNum + 1),
-                                    "on page {}".format(pageNum))
+                    logging.warning(
+                    "Failed to load link {:0>2d} ".format(linkNum + 1), 
+                    "on page {}".format(pageNum))
             # Done!
             return tickets
     
@@ -137,7 +141,10 @@ class TicketScraper:
             # Parse the page contents
             soup = BeautifulSoup(ticketPage.content)
             # Get the ticket details
-            ticketDetails = soup.find_all("span")
+            ticketDetails = [ cell.getText() for cell in soup.find_all("span") ]
+            # Parse the date field to make it more searchable
+            ticketDetails[0] = \
+            d.strptime(ticketDetails[0], "%A, %B %d, %Y").strftime("%Y-%m-%d")
             # Append our results list
-            return [ span.getText() for span in ticketDetails ]
+            return ticketDetails
         return None
