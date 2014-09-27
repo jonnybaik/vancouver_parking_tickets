@@ -43,7 +43,7 @@ class TicketScraper:
         the online database
         '''
         # Open the parking tickets search page from vancouversun.com.
-        # Grab the app key, and then retrieve the page with results to scrape
+        # Need to grab an app key from vancouver sun
         START_URL = "http://www.vancouversun.com/parking/basic-search.html"
         
         # Initialize appKey
@@ -61,7 +61,6 @@ class TicketScraper:
             # Get the app key. It should be contained in the div layer with
             # id="cxkg", which holds a link with
             # href="http://b2.caspio.com/dp.asp?AppKey=[APPKEY]"
-            # Grab the link to the db page and extract the App Key
             appKey = soup.find("div", id="cxkg").find("a")["href"]
             appKey = appKey.split("AppKey=")[1]
             logging.debug("App key retrieved")
@@ -135,6 +134,8 @@ class TicketScraper:
         '''
         # Get the page
         ticketPage = self.getPage(self.URL_ROOT + ticketLink)
+        # Initialize the ticket details object
+        ticketDetails = None
         
         # Return the ticket details if page loaded OK, otherwise return None
         if ticketPage.ok:
@@ -146,5 +147,4 @@ class TicketScraper:
             ticketDetails[0] = \
             d.strptime(ticketDetails[0], "%A, %B %d, %Y").strftime("%Y-%m-%d")
             # Append our results list
-            return ticketDetails
-        return None
+        return ticketDetails
