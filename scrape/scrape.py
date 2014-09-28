@@ -115,7 +115,7 @@ class TicketScraper:
             # Now get all the info for the tickets on this page
             tickets = []
             for linkNum, link in enumerate(ticketLinks) :
-                logging.debug(
+                logging.info(
                 "Parsing link {:0>2d} of page {}".format(linkNum + 1, pageNum)
                 )
                 ticketDetails = self.getTicketDetails(link)

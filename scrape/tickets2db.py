@@ -10,11 +10,24 @@ import scrape
 import sqlite3
 import time
 import sys
+import argparse
+
+# Parse command line arguments
+parser = argparse.ArgumentParser(description="Scrape parking tickets data")
+parser.add_argument("--pages", dest="pages", nargs=2, type=int,
+                    metavar=("N1", "N2"),
+                    help="Scrape pages between the two given args")
+parser.add_argument("--logfile", dest="logfile", type=str,
+                    metavar="FILE", help="Name of log file")
+args = parser.parse_args()
 
 if __name__ == "__main__":
     # Save log to file
-    logging.basicConfig(filename='tickets2db.log', filemode='w',
-                        level=logging.WARNING)
+    logfile = args.logfile
+    if logfile is None:
+        logfile = "'tickets2db.log"
+    logging.basicConfig(filename=str(logfile), filemode='w', level=logging.INFO)
+    
     # Initialize the scraper
     scraper = scrape.TicketScraper()
     
@@ -25,7 +38,7 @@ if __name__ == "__main__":
         
         # Create the table
         table_string = (
-            "CREATE TABLE tickets(" + \
+            "CREATE TABLE IF NOT EXISTS tickets(" + \
             ",".join(scraper.TICKET_FIELDS) + ")"
             )
         # cur.execute("DROP TABLE IF EXISTS tickets")
@@ -37,8 +50,18 @@ if __name__ == "__main__":
             ",".join(["?"]*len(scraper.TICKET_FIELDS)) + ")"
             )
         
-        # Get the details on the first page
-        for page in range(scraper.MAX_PAGE):
+        # Get the details in given page range
+        if args.pages is None:
+            page_range = range(scraper.MAX_PAGE)
+        else:
+            # Make sure to subtract 1 because we add 1 later due to the default
+            # case when pages are not given as arguments
+            if args.pages[1] > scraper.MAX_PAGE:
+                page_range = range(args.pages[0]-1, scraper.MAX_PAGE)
+            else:
+                page_range = range(args.pages[0]-1, args.pages[1])
+        
+        for page in page_range:
             # Get 30 tickets at a time, then insert into db
             start = time.time()
             print("Getting tickets on page {} - ".format(page + 1), 
@@ -51,7 +74,6 @@ if __name__ == "__main__":
             print("Time: {:.2f}".format(time.time() - start) + " sec")
     
     except sqlite3.Error as e:
-
         if con:
             con.rollback()
         print("Error {}".format(e.args[0]))
