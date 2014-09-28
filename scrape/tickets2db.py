@@ -26,7 +26,7 @@ if __name__ == "__main__":
     logfile = args.logfile
     if logfile is None:
         logfile = "'tickets2db.log"
-    logging.basicConfig(filename=str(logfile), filemode='w', level=logging.INFO)
+    logging.basicConfig(filename=logfile, filemode='w', level=logging.WARNING)
     
     # Initialize the scraper
     scraper = scrape.TicketScraper()
@@ -62,11 +62,12 @@ if __name__ == "__main__":
                 page_range = range(args.pages[0]-1, args.pages[1])
         
         for page in page_range:
-            # Get 30 tickets at a time, then insert into db
+            # Get all tickets on a page, then insert into db
             start = time.time()
             print("Getting tickets on page {} - ".format(page + 1), 
                   flush=True, end="")
             tickets = scraper.getTicketsOnPage(page + 1)
+            # Insert to db
             cur.executemany(insert_string, tickets)
             # Commit our changes
             con.commit()

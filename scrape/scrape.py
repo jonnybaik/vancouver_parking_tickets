@@ -127,6 +127,9 @@ class TicketScraper:
                     "on page {}".format(pageNum))
             # Done!
             return tickets
+        else:
+            logging.warning("Failed to load page {:.0f}".format(pageNum))
+            return None
     
     def getTicketDetails(self, ticketLink):
         '''
