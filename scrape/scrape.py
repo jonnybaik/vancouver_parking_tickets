@@ -149,5 +149,4 @@ class TicketScraper:
             # Parse the date field to make it more searchable
             ticketDetails[0] = \
             d.strptime(ticketDetails[0], "%A, %B %d, %Y").strftime("%Y-%m-%d")
-            # Append our results list
         return ticketDetails

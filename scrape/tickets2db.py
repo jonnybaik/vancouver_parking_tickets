@@ -68,6 +68,7 @@ if __name__ == "__main__":
                   flush=True, end="")
             tickets = scraper.getTicketsOnPage(page + 1)
             # Insert to db
+            print("Inserting to db - ", flush=True, end="")
             cur.executemany(insert_string, tickets)
             # Commit our changes
             con.commit()
@@ -84,5 +85,8 @@ if __name__ == "__main__":
         # Close the connection after finishing
         if con:
             con.close()
+        # Print time
+        finish_time = time.asctime(time.localtime(time.time()))
+        print("Script finish time: {}".format(finish_time))
     
     
