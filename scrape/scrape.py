@@ -8,6 +8,8 @@ from bs4 import BeautifulSoup
 import requests
 from datetime import datetime as d
 import logging
+import sys
+import time
 # import sqlite3
 
 # Some
@@ -20,6 +22,10 @@ class TicketScraper:
     MAX_PAGE = 54380
     # The total number of attempts to load a page
     MAX_TRIES = 3
+    # Keep track of the current number of attempts
+    CURRENT_ATTEMPT = 0
+    # Delay in trying again (in seconds)
+    TRY_DELAY = 300
     # The root url of the db, needed to follow relative links
     URL_ROOT = "http://b2.caspio.com/"
     # Construct the url with appkey %s to page %d in the db
@@ -65,22 +71,42 @@ class TicketScraper:
             appKey = appKey.split("AppKey=")[1]
             logging.debug("App key retrieved")
             return appKey
-        # Page didn't load!
-        logging.error(
-        "Failed to get app key! Page status: {}".format(startPage.status_code)
-        )
-        # Raise an exception if the page did not load in MAX_TRIES attempts!
-        startPage.raise_for_status()
+        else:
+            # Page didn't load!
+            msg = "Failed to get app key! Page status: {}"
+            logging.error(msg.format(startPage.status_code))
+            # Raise an exception if the page did not load in MAX_TRIES attempts!
+            startPage.raise_for_status()
     
     def getPage(self, url):
         '''
         Helper function - try to load a URL MAX_TRIES times
         '''
-        for attempt in range(self.MAX_TRIES):
+        # Increment the current attempt counter
+        self.CURRENT_ATTEMPT += 1
+        try:
+            # Try to get the page and reset counter if OK
             page = requests.get(url)
-            if page.ok:
-                break
-        return page
+            if (not page.ok) & (self.CURRENT_ATTEMPT < self.MAX_TRIES):
+                return self.getPage(url)
+            else:
+                self.CURRENT_ATTEMPT = 0
+                return page
+        except requests.exceptions.RequestException as e:
+            # If connection timed out, try again after TRY_DELAY seconds
+            if self.CURRENT_ATTEMPT < self.MAX_TRIES:
+                # Try again with new app key after a delay
+                logging.warning("Failed to load page.")
+                logging.warning(e)
+                time.sleep(self.TRY_DELAY)
+                print("Trying again!")
+                self.AppKey = self.getAppKey()
+                return self.getPage(url)
+            else:
+                # Print error to log and to console
+                logging.error(e)
+                print(e)
+                sys.exit(1)
 
     def getTicketsOnPage(self, pageNum):
         '''
@@ -114,7 +140,7 @@ class TicketScraper:
             
             # Now get all the info for the tickets on this page
             tickets = []
-            for linkNum, link in enumerate(ticketLinks) :
+            for linkNum, link in enumerate(ticketLinks):
                 logging.info(
                 "Parsing link {:0>2d} of page {}".format(linkNum + 1, pageNum)
                 )
@@ -122,14 +148,14 @@ class TicketScraper:
                 if ticketDetails is not None:
                     tickets.append(ticketDetails)
                 else:
-                    logging.warning(
-                    "Failed to load link {:0>2d} ".format(linkNum + 1), 
-                    "on page {}".format(pageNum))
+                    msg = "Failed to load link {:0>2d} on page {}"
+                    logging.warning(msg.format(linkNum + 1, pageNum))
             # Done!
             return tickets
         else:
+            # Log and raise error
             logging.warning("Failed to load page {:.0f}".format(pageNum))
-            return None
+            dbPage.raise_for_status()
     
     def getTicketDetails(self, ticketLink):
         '''
@@ -145,7 +171,7 @@ class TicketScraper:
             # Parse the page contents
             soup = BeautifulSoup(ticketPage.content)
             # Get the ticket details
-            ticketDetails = [ cell.getText() for cell in soup.find_all("span") ]
+            ticketDetails = [cell.getText() for cell in soup.find_all("span")]
             # Parse the date field to make it more searchable
             ticketDetails[0] = \
             d.strptime(ticketDetails[0], "%A, %B %d, %Y").strftime("%Y-%m-%d")
