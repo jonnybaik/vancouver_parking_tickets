@@ -88,6 +88,8 @@ class TicketScraper:
             # Try to get the page and reset counter if OK
             page = requests.get(url)
             if (not page.ok) & (self.CURRENT_ATTEMPT < self.MAX_TRIES):
+                print("Trying again!")
+                logging.warning("Failed to load " + url + " - trying again!")
                 return self.getPage(url)
             else:
                 self.CURRENT_ATTEMPT = 0

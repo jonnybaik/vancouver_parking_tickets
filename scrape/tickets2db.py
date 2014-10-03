@@ -25,7 +25,7 @@ if __name__ == "__main__":
     # Save log to file
     logfile = args.logfile
     if logfile is None:
-        logfile = "'tickets2db.log"
+        logfile = "tickets2db.log"
     logging.basicConfig(filename=logfile, filemode='w', level=logging.WARNING)
     
     # Initialize the scraper
@@ -41,7 +41,6 @@ if __name__ == "__main__":
             "CREATE TABLE IF NOT EXISTS tickets(" + \
             ",".join(scraper.TICKET_FIELDS) + ")"
             )
-        # cur.execute("DROP TABLE IF EXISTS tickets")
         cur.execute(table_string)
         
         # Command for inserting values
@@ -52,6 +51,7 @@ if __name__ == "__main__":
         
         # Get the details in given page range
         if args.pages is None:
+            print("Getting tickets from pages 1 to " + scraper.MAX_PAGE)
             page_range = range(scraper.MAX_PAGE)
         else:
             # Make sure to subtract 1 because we add 1 later due to the default
@@ -73,11 +73,13 @@ if __name__ == "__main__":
             # Commit our changes
             con.commit()
             # Print time
-            print("Time: {:.2f}".format(time.time() - start) + " sec")
+            fin = time.asctime(time.localtime(time.time()))
+            print("Time: {:.2f}".format(time.time() - start) + " s - " + fin)
     
     except sqlite3.Error as e:
         if con:
             con.rollback()
+        logging.error(e)
         print("Error {}".format(e.args[0]))
         sys.exit(1)
         
@@ -88,5 +90,6 @@ if __name__ == "__main__":
         # Print time
         finish_time = time.asctime(time.localtime(time.time()))
         print("Script finish time: {}".format(finish_time))
+        print("At page {} at exit time".format(page + 1))
     
     
