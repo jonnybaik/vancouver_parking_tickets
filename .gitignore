@@ -1,3 +1,6 @@
 *__pycache__*
 *.log
 *.db
+.Rproj.user
+.Rhistory
+*.Rproj
